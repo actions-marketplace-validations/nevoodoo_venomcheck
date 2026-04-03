@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Install dev dependencies
+        run: pip install pytest ruff
+
+      - name: Lint
+        run: ruff check venomcheck/ tests/
+
+      - name: Test
+        run: pytest tests/ -v
+
+  integration-uv:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Run scanner against uv fixture
+        run: |
+          REPORT=$(python -m venomcheck.cli --mode uv --path tests/fixtures 2>&1 || true)
+          echo "$REPORT"
+
+          # Fixture has certifi 2023.7.22 — must find at least 1 vuln
+          echo "$REPORT" | grep -q "Vulnerability Audit"
+          echo "$REPORT" | grep -q "certifi"
+          echo "uv integration test passed — vulnerabilities detected as expected"
+
+  integration-pip:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Install packages from fixture requirements.txt
+        run: pip install -r tests/fixtures/requirements.txt
+
+      - name: Run scanner in pip mode
+        run: |
+          REPORT=$(python -m venomcheck.cli --mode pip --path tests/fixtures 2>&1 || true)
+          echo "$REPORT"
+
+          # Fixture has cryptography 41.0.0 — must find at least 1 vuln
+          echo "$REPORT" | grep -q "Vulnerability Audit"
+          echo "$REPORT" | grep -q "cryptography"
+          echo "pip integration test passed — vulnerabilities detected as expected"
