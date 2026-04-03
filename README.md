@@ -124,7 +124,7 @@ Found 3 vulnerabilities in 2 packages
 
 ## Design choices
 
-- **stdlib-only** — no external Python dependencies; uses `tomllib`, `importlib.metadata`, and `urllib.request`
+- **Minimal dependencies** — pip mode uses only the stdlib (`importlib.metadata`, `urllib.request`); uv mode additionally requires `uv` for lock file resolution
 - **Composite action** — no Docker, fast startup, works on all runner OSes
 - **OSV.dev** — free, no auth, same DB used by pip-audit and `uv audit`
 - **Marker-isolated PR comments** — uses an HTML marker to find/update its own comment without clobbering other bots
